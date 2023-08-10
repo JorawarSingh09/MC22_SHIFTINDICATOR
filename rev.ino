@@ -18,20 +18,33 @@
 #define OLED_CS    12
 #define OLED_RESET 13
 
+#define ANALOG_IN_PIN A0
+ 
+// Floats for ADC voltage & Input voltage
+float adc_voltage = 0.0;
+float in_voltage = 0.0;
+ 
+// Floats for resistor values in divider (in ohms)
+float R1 = 30000.0;
+float R2 = 7500.0; 
+ 
+// Float for Reference Voltage
+float ref_voltage = 5.0;
+ 
+// Integer for ADC value
+int adc_value = 0;
+
 CRGB leds[NUM_LEDS];
-CRGB C1 = CRGB(255, 0, 255);
-CRGB C2 = CRGB(0, 255, 0);
+CRGB C1 = CRGB(0, 0, 255);
+CRGB C2 = CRGB(0, 0, 0);
 
 U8GLIB_SH1106_128X64 u8g(OLED_CLK, OLED_MOSI, OLED_CS, OLED_DC);
 
-const int analogPin = A1;
-const float referenceVoltage = 5;
-const float r1 = 10000.0;  // Resistance value of R1 
-const float r2 = 4200.0;  // Resistance value of R2 
-
 void setup() {
-//  Serial.begin(9600);
-
+  Serial.begin(9600);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(ANALOG_IN_PIN, INPUT_PULLUP);
+  
   FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
   for (int i = 0; i <= NUM_LEDS; i++) {
     leds[i] = CRGB ( 255, 255, 255);
@@ -85,11 +98,16 @@ void loop() {
 
   u8g.firstPage();
   do {      
-    int sensorValue = analogRead(analogPin);
-    float voltage = (sensorValue / 1023.0) * referenceVoltage;
-
-
-    float vout = voltage * (r2 / (r1 + r2));
+    // Read the Analog Input
+    adc_value = analogRead(ANALOG_IN_PIN);
+   
+     // Determine voltage at ADC input
+    adc_voltage  = (adc_value * ref_voltage) / 1024.0; 
+   
+    // Calculate voltage at divider input
+    in_voltage = adc_voltage / (R2/(R1+R2)) ;
+    float vout = (in_voltage - 3) / 24;
+//    Serial.println(vout);
     u8g.setFont(u8g_font_unifont);
     //u8g.setFont(u8g_font_osb21);
     char myString[10]; // Create a character array to store the string representation
@@ -107,7 +125,7 @@ void loop() {
   FastLED.show();
   dtostrf(vout, 6, 2, myString);
   u8g.drawStr(0, 22, myString);
-  Serial.print(myString);
+  
 
   } while ( u8g.nextPage() );
   delay(100);
